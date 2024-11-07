@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub API App</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+  <div class="flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
+      <h1 class="text-2xl font-bold mb-4">GitHub API App</h1>
+      <form id="githubForm" class="mb-6">
+        <label for="githubUsername" class="block text-sm font-medium text-gray-700 mb-2">GitHub Username</label>
+        <input type="text" id="githubUsername" name="githubUsername" class="w-full px-4 py-2 border border-gray-300 rounded-md mb-4" placeholder="Enter a GitHub username" required>
+        <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors">Fetch User Data</button>
+      </form>
+
+      <div id="loadingMessage" class="text-gray-500 font-medium mb-4 hidden">Loading...</div>
+
+      <div id="userInfo" class="hidden mb-6">
+        <div class="flex items-center mb-4">
+          <img id="userAvatar" class="w-16 h-16 rounded-full mr-4" src="" alt="User Avatar">
+          <div>
+            <h2 id="userName" class="text-lg font-bold"></h2>
+            <p>Followers: <span id="userFollowers"></span></p>
+          </div>
+        </div>
+        <h2 class="text-lg font-bold mb-2">Repositories</h2>
+        <div id="repoGrid" class="grid grid-cols-2 gap-4"></div>
+      </div>
+
+      <p id="errorMessage" class="text-red-500 font-medium hidden" role="alert"></p>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('githubForm');
+    const repoGrid = document.getElementById('repoGrid');
+    const userAvatar = document.getElementById('userAvatar');
+    const userName = document.getElementById('userName');
+    const userFollowers = document.getElementById('userFollowers');
+    const userInfo = document.getElementById('userInfo');
+    const errorMessage = document.getElementById('errorMessage');
+    const loadingMessage = document.getElementById('loadingMessage');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const username = document.getElementById('githubUsername').value.trim();
+
+      if (!username) {
+        showError('Please enter a GitHub username.');
+        return;
+      }
+
+      showLoading();
+
+      fetch(`https://api.github.com/users/${username}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          userAvatar.src = data.avatar_url;
+          userAvatar.alt = `${data.login}'s avatar`;
+          userName.textContent = data.name || data.login;
+          userFollowers.textContent = data.followers;
+          showUserInfo();
+
+          return fetch(`https://api.github.com/users/${username}/repos`);
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(repos => {
+          repoGrid.innerHTML = '';
+          repos.forEach(repo => {
+            const repoItem = document.createElement('a');
+            repoItem.href = repo.html_url;
+            repoItem.target = '_blank';
+            repoItem.rel = 'noopener noreferrer';
+            repoItem.classList.add('bg-gray-200', 'px-4', 'py-2', 'rounded-md', 'hover:bg-gray-300', 'transition-colors', 'cursor-pointer', 'block', 'truncate');
+            repoItem.textContent = repo.name;
+            repoGrid.appendChild(repoItem);
+          });
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          if (error.message.includes('404')) {
+            showError('User not found. Please enter a valid GitHub username.');
+          } else {
+            showError('Error fetching data. Please try again.');
+          }
+        })
+        .finally(() => {
+          hideLoading();
+        });
+    });
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove('hidden');
+      userInfo.classList.add('hidden');
+    }
+
+    function showUserInfo() {
+      userInfo.classList.remove('hidden');
+      errorMessage.classList.add('hidden');
+    }
+
+    function showLoading() {
+      loadingMessage.classList.remove('hidden');
+      userInfo.classList.add('hidden');
+      errorMessage.classList.add('hidden');
+    }
+
+    function hideLoading() {
+      loadingMessage.classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
